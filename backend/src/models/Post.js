@@ -15,6 +15,11 @@ const postSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+  format: {
+    type: String,
+    enum: ['PLAIN', 'MARKDOWN'],
+    default: 'PLAIN'
+  },
   createdAt: {
     type: Date,
     default: Date.now

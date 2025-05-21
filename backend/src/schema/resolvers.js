@@ -1,6 +1,11 @@
 const Post = require('../models/Post');
 
 const resolvers = {
+  Date: {
+    serialize: (value) => value.toISOString(),
+    parseValue: (value) => new Date(value),
+    parseLiteral: (ast) => new Date(ast.value)
+  },
   Query: {
     posts: async () => {
       try {
@@ -18,9 +23,9 @@ const resolvers = {
     }
   },
   Mutation: {
-    createPost: async (_, { title, content, author }) => {
+    createPost: async (_, { title, content, author, format }) => {
       try {
-        const post = new Post({ title, content, author });
+        const post = new Post({ title, content, author, format });
         return await post.save();
       } catch (error) {
         throw new Error('Error creating post');
@@ -39,10 +44,23 @@ const resolvers = {
     },
     deletePost: async (_, { id }) => {
       try {
+        // First check if the post exists
+        const post = await Post.findById(id);
+        if (!post) {
+          throw new Error('Post not found');
+        }
+
+        // Attempt to delete the post
         const result = await Post.findByIdAndDelete(id);
-        return !!result;
+        
+        if (!result) {
+          throw new Error('Failed to delete post');
+        }
+
+        return true;
       } catch (error) {
-        throw new Error('Error deleting post');
+        console.error('Delete post error:', error);
+        throw new Error(error.message || 'Error deleting post');
       }
     }
   }
