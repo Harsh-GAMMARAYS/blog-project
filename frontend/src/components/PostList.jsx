@@ -2,6 +2,7 @@ import { useQuery, useMutation, gql } from '@apollo/client';
 import Link from 'next/link';
 import DeleteModal from './DeleteModal';
 import { useState } from 'react';
+import Button from './Button';
 
 const GET_POSTS = gql`
   query GetPosts {
@@ -49,14 +50,14 @@ export default function PostList() {
 
   const handleDeleteConfirm = async () => {
     try {
-      const { data } = await deletePost({ 
+      const { data } = await deletePost({
         variables: { id: postToDelete.id },
         update: (cache) => {
           // Remove the deleted post from the cache
           const existingPosts = cache.readQuery({
             query: GET_POSTS
           });
-          
+
           if (existingPosts) {
             cache.writeQuery({
               query: GET_POSTS,
@@ -94,45 +95,51 @@ export default function PostList() {
         {data.posts.map((post) => (
           <div
             key={post.id}
-            className="group bg-white rounded-2xl shadow-sm hover:shadow-lg transition-shadow duration-200 p-0 cursor-pointer border flex flex-col md:flex-row items-stretch"
+            className="group bg-white rounded-2xl shadow-sm hover:shadow-lg transition-shadow duration-200 p-0 cursor-pointer border flex"
           >
             {/* Left: Text Content */}
-            <Link href={`/blog/${post.id}`} className="flex-1 block p-8">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 font-bold text-lg">
-                  {post.author ? post.author[0].toUpperCase() : 'A'}
+            <div className="flex-1 p-8">
+              <Link href={`/blog/${post.id}`}>
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 font-bold text-lg">
+                    {post.author ? post.author[0].toUpperCase() : 'A'}
+                  </div>
+                  <span className="text-sm text-gray-600 font-medium">{post.author || 'Anonymous'}</span>
+                  <span className="mx-2 text-gray-400">·</span>
+                  <span className="text-xs text-gray-400">
+                    {post.createdAt ? new Date(post.createdAt).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric'
+                    }) : ''}
+                  </span>
+                  {post.format === 'MARKDOWN' && (
+                    <>
+                      <span className="mx-2 text-gray-400">·</span>
+                      <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded">MD</span>
+                    </>
+                  )}
                 </div>
-                <span className="text-sm text-gray-600 font-medium">{post.author || 'Anonymous'}</span>
-                <span className="mx-2 text-gray-400">·</span>
-                <span className="text-xs text-gray-400">
-                  {post.createdAt ? new Date(post.createdAt).toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric'
-                  }) : ''}
-                </span>
-                {post.format === 'MARKDOWN' && (
-                  <>
-                    <span className="mx-2 text-gray-400">·</span>
-                    <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded">MD</span>
-                  </>
-                )}
-              </div>
-              <h2 className="text-2xl font-serif font-bold text-gray-900 group-hover:text-blue-700 mb-2 line-clamp-2">
-                {post.title}
-              </h2>
-              <p className="text-base font-sans text-gray-800 mb-4 line-clamp-3">
-                {post.content?.slice(0, 180)}{post.content && post.content.length > 180 ? '...' : ''}
-              </p>
-            </Link>
-            <div className="flex justify-end gap-4 px-8 pb-4 mt-auto">
-              <Link href={`/blog/edit/${post.id}`} className="text-gray-500 hover:text-blue-700 text-sm font-medium">Edit</Link>
-              <button
-                onClick={() => handleDeleteClick(post)}
-                className="text-gray-400 hover:text-red-500 text-sm font-medium"
+                <h2 className="text-2xl font-serif font-bold text-gray-900 group-hover:text-blue-700 mb-2 line-clamp-2">
+                  {post.title}
+                </h2>
+                <p className="text-base font-sans text-gray-800 line-clamp-3">
+                  {post.content?.slice(0, 180)}{post.content && post.content.length > 180 ? '...' : ''}
+                </p>
+              </Link>
+            </div>
+            {/* Right: Buttons */}
+            <div className="flex gap-2 pr-8 self-end pb-8">
+              <Button
+                variant="secondary"
+                size="small"
+                onClick={() => router.push(`/blog/edit/${post.id}`)}
               >
+                Edit
+              </Button>
+              <Button variant="danger" size="small" onClick={() => handleDeleteClick(post)}>
                 Delete
-              </button>
+              </Button>
             </div>
           </div>
         ))}

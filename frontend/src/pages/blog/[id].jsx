@@ -30,7 +30,7 @@ function BlogPostDetail() {
   const router = useRouter();
   const { id } = router.query;
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-
+  const [deleteError, setDeleteError] = useState(null);
   const { loading, error, data } = useQuery(GET_POST, {
     variables: { id },
     skip: !id,
@@ -43,49 +43,77 @@ function BlogPostDetail() {
   });
 
   const handleDelete = async () => {
+    setDeleteError(null);
+    //Store the original posts before deletion
+    let originalPosts;
     try {
-      await deletePost({
-        variables: { id },
-        update: (cache) => {
-          // Remove the deleted post from the cache
-          const existingPosts = cache.readQuery({
-            query: gql`
-              query GetPosts {
-                posts {
-                  id
-                  title
-                  content
-                  author
-                  format
-                  createdAt
-                }
-              }
-            `
-          });
-          
-          if (existingPosts) {
-            cache.writeQuery({
-              query: gql`
-                query GetPosts {
-                  posts {
-                    id
-                    title
-                    content
-                    author
-                    format
-                    createdAt
-                  }
-                }
-              `,
-              data: {
-                posts: existingPosts.posts.filter(post => post.id !== id)
-              }
-            });
+      // First we will read the current state
+      originalPosts = cache.readQuery({
+        query: gql`
+          query GetPosts {
+            posts {
+              id
+              title
+              content
+              author
+              format
+              createdAt
+            }
           }
+        `
+      });
+
+      // Optimistically update the UI
+      cache.writeQuery({
+        query: gql`
+          query GetPosts {
+            posts {
+              id
+              title
+              content
+              author
+              format
+              createdAt
+            }
+          }
+        `,
+        data: {
+          posts: originalPosts.posts.filter(post => post.id !== id)
         }
       });
+
+      // Attempt the deletion
+      await deletePost({
+        variables: { id }
+      });
+
+      // If successful, navigate to the blog list
+      router.push('/blog');
+
+      // If there's an error, revert the UI
     } catch (error) {
-      console.error('Failed to delete post:', error);
+      if (originalPosts) {
+        cache.writeQuery({
+          query: gql`
+            query GetPosts {
+              posts {
+                id
+                title
+                content
+                author
+                format
+                createdAt
+              }
+            }
+          `,
+          data: {
+            posts: originalPosts.posts
+          }
+        });
+      }
+
+      setDeleteError('Failed to delete post. Please try again.');
+      console.error('Error deleting post:', error);
     }
   };
 
@@ -143,7 +171,10 @@ function BlogPostDetail() {
 
       <ConfirmModal
         isOpen={showDeleteModal}
-        onClose={() => setShowDeleteModal(false)}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setDeleteError(null);
+        }}
         onConfirm={() => {
           handleDelete();
           setShowDeleteModal(false);
